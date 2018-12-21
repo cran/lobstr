@@ -2,6 +2,19 @@
 using namespace Rcpp;
 #include <Rversion.h>
 
+// [[Rcpp::export]]
+SEXP obj_formals(SEXP x) {
+  return FORMALS(x);
+}
+// [[Rcpp::export]]
+SEXP obj_body(SEXP x) {
+  return BODY(x);
+}
+// [[Rcpp::export]]
+SEXP obj_cloenv(SEXP x) {
+  return CLOENV(x);
+}
+
 
 // [[Rcpp::export]]
 double v_size(double n, int element_size) {
@@ -54,7 +67,7 @@ double obj_size_tree(SEXP x, Environment base_env, int sizeof_node, int sizeof_v
   if (TYPEOF(x) != CHARSXP)
     size += obj_size_tree(ATTRIB(x), base_env, sizeof_node, sizeof_vector, seen);
 
-#if defined(R_VERSION) && R_VERSION > R_Version(3, 5, 0)
+#if defined(R_VERSION) && R_VERSION >= R_Version(3, 5, 0)
   // Handle ALTREP objects
   if (ALTREP(x)) {
     size += 3 * sizeof(SEXP);
@@ -114,7 +127,6 @@ double obj_size_tree(SEXP x, Environment base_env, int sizeof_node, int sizeof_v
   case DOTSXP:
   case LISTSXP:
   case LANGSXP:
-  case BCODESXP:
     if (x == R_MissingArg) // Needed for DOTSXP
       break;
 
@@ -125,6 +137,12 @@ double obj_size_tree(SEXP x, Environment base_env, int sizeof_node, int sizeof_v
       size += obj_size_tree(CAR(cons), base_env, sizeof_node, sizeof_vector, seen);
     }
 
+    break;
+
+  case BCODESXP:
+    size += obj_size_tree(TAG(x), base_env, sizeof_node, sizeof_vector, seen);
+    size += obj_size_tree(CAR(x), base_env, sizeof_node, sizeof_vector, seen);
+    size += obj_size_tree(CDR(x), base_env, sizeof_node, sizeof_vector, seen);
     break;
 
   // Environments
@@ -140,6 +158,7 @@ double obj_size_tree(SEXP x, Environment base_env, int sizeof_node, int sizeof_v
   // Functions
   case CLOSXP:
     size += obj_size_tree(FORMALS(x), base_env, sizeof_node, sizeof_vector, seen);
+    // BODY is either an expression or byte code
     size += obj_size_tree(BODY(x), base_env, sizeof_node, sizeof_vector, seen);
     size += obj_size_tree(CLOENV(x), base_env, sizeof_node, sizeof_vector, seen);
     break;

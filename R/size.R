@@ -110,3 +110,14 @@ c.lobstr_bytes <- function(...) {
 `[.lobstr_bytes` <- function(...) {
   new_bytes(NextMethod())
 }
+
+# Helpers for interactive exploration -------------------------------------
+
+comp <- function(x) {
+  base <- utils::object.size(x)
+  lobstr <- obj_size(x)
+  c(base = base, lobstr = lobstr, diff = base - lobstr)
+}
+insp <- function(x) {
+  eval(quote(.Internal(inspect(x))))
+}

@@ -99,7 +99,6 @@ test_that("size of closures same as base", {
   expect_same(f)
 })
 
-
 # Improved behaviour for ALTREP objects -----------------------------------
 
 test_that("altrep size measured correctly", {

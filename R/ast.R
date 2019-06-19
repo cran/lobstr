@@ -4,6 +4,7 @@
 #'
 #' @param x An expression to display. Input is automatically quoted,
 #'   use `!!` to unquote if you have already captured an expression object.
+#' @family object inspectors
 #' @export
 #' @examples
 #' # Leaves
@@ -38,7 +39,7 @@ ast <- function(x) {
 
 ast_tree <- function(x, layout = box_chars()) {
   if (is_quosure(x)) {
-    x <- quo_expr(x)
+    x <- quo_squash(x)
   }
 
   # base cases

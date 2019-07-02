@@ -1,3 +1,9 @@
+# lobstr 1.1.1
+
+* Fix PROTECT error.
+
+* Remove UTF-8 charatecrs from comments
+
 # lobstr 1.1.0
 
 * `ref()` now handles custom classes properly (@yutannihilation, #36)

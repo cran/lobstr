@@ -1,6 +1,6 @@
-33df1d5e34b559b5d052df482c8b204d *DESCRIPTION
+e67abfee90a1f5d0fa2f791a9d21b589 *DESCRIPTION
 d7d59f243f9033b7970179fa6958c31e *NAMESPACE
-1c5fc66b681c91864c01f86b3af6d62e *NEWS.md
+1b5453d9fc400339e6a7b468a7868b3d *NEWS.md
 6c3a7e10b62bf77f1104ed16ed167656 *R/RcppExports.R
 93d58f53eeb7461eb9be11353d16243b *R/address.R
 5cd39b056b3bdc4b0d0b945532dda9b4 *R/ast.R
@@ -10,7 +10,7 @@ f85f62d7965b6e0dbd848a4d29d8b6c3 *R/lobstr.R
 4915760c3fe046368a117f475cc95705 *R/ref.R
 e85018495acccdadfc3d1345cbaa99bb *R/size.R
 f7d3d97198a963fb6c687ec382fc5e66 *R/sxp.R
-04c662ec6a28755353600c2c022a8bb4 *R/utils.R
+1fdc903cf55779e17b413f0081a92eac *R/utils.R
 2c4f20e492d9e2eee6d0fa66c15d51ab *README.md
 32e9faa30332076a0e403009e89451cb *man/ast.Rd
 ec937196239fb6b6959b59e5f7764caa *man/cst.Rd
@@ -22,7 +22,7 @@ f8b5ee446ac342e149827cad29a7f658 *man/obj_size.Rd
 30b069aed55d7de71b4ec2b22d4d4a01 *man/sxp.Rd
 a43366150a25710c6b7bde35c63866b1 *src/RcppExports.cpp
 f63a19c6c734e9a4e08fd03fbb29b96b *src/address.cpp
-396b47cc58b07c20e27b6a126f84973c *src/inspect.cpp
+7f0b3f02c6bfbc71845aa3180df15834 *src/inspect.cpp
 e0f255dbec9b124de7a0839b34858711 *src/size.cpp
 35f98f5a6ad54e371e4e1f6638702a56 *tests/testthat.R
 3786e6f6b356c7f36eff1d46cc40b649 *tests/testthat/size-aligned.txt

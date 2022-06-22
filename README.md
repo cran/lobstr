@@ -3,12 +3,14 @@
 
 # lobstr <img src="man/figures/logo.png" align="right" height="139" />
 
+<!-- badges: start -->
+
 [![CRAN
 status](https://www.r-pkg.org/badges/version/lobstr)](https://cran.r-project.org/package=lobstr)
-[![Travis-CI Build
-Status](https://travis-ci.org/r-lib/lobstr.svg?branch=master)](https://travis-ci.org/r-lib/lobstr)
-[![Coverage
-status](https://codecov.io/gh/r-lib/lobstr/branch/master/graph/badge.svg)](https://codecov.io/github/r-lib/lobstr?branch=master)
+[![R-CMD-check](https://github.com/r-lib/lobstr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/r-lib/lobstr/actions/workflows/R-CMD-check.yaml)
+[![Codecov test
+coverage](https://codecov.io/gh/r-lib/lobstr/branch/main/graph/badge.svg)](https://app.codecov.io/gh/r-lib/lobstr?branch=main)
+<!-- badges: end -->
 
 lobstr provides tools in the same vein as `str()`, which allow you to
 dig into the detail of an object.
@@ -66,16 +68,16 @@ digging into the underlying \_\_ref\_\_erences:
 x <- 1:1e6
 y <- list(x, x, x)
 ref(y)
-#> █ [1:0x7fa42b6a9598] <list> 
-#> ├─[2:0x7fa428ae7c88] <int> 
-#> ├─[2:0x7fa428ae7c88] 
-#> └─[2:0x7fa428ae7c88]
+#> █ [1:0x7fed114eaea8] <list> 
+#> ├─[2:0x7fed21f373b8] <int> 
+#> ├─[2:0x7fed21f373b8] 
+#> └─[2:0x7fed21f373b8]
 
 e <- rlang::env()
 e$self <- e
 ref(e)
-#> █ [1:0x7fa42d981790] <env> 
-#> └─self = [1:0x7fa42d981790]
+#> █ [1:0x7fecf1856f00] <env> 
+#> └─self = [1:0x7fecf1856f00]
 ```
 
 A related tool is `obj_size()`, which computes the size of an object
@@ -97,9 +99,9 @@ f <- function(x) g(x)
 g <- function(x) h(x)
 h <- function(x) x
 f(cst())
-#>     █
-#>  1. ├─global::f(cst())
-#>  2. │ └─global::g(x)
-#>  3. │   └─global::h(x)
+#>     ▆
+#>  1. ├─global f(cst())
+#>  2. │ └─global g(x)
+#>  3. │   └─global h(x)
 #>  4. └─lobstr::cst()
 ```

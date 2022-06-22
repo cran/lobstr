@@ -1,8 +1,11 @@
-#include <Rcpp.h>
-using namespace Rcpp;
+#include <cpp11/environment.hpp>
+#include <cpp11/doubles.hpp>
+#include <cpp11/list.hpp>
 #include <Rversion.h>
+#include <set>
+#include "utils.h"
 
-// [[Rcpp::export]]
+[[cpp11::register]]
 double v_size(double n, int element_size) {
   if (n == 0)
     return 0;
@@ -28,15 +31,17 @@ double v_size(double n, int element_size) {
   return size;
 }
 
-bool is_namespace(Environment env) {
-  return Rf_findVarInFrame3(env, Rf_install(".__NAMESPACE__."), FALSE) != R_UnboundValue;
+bool is_namespace(cpp11::environment env) {
+  return env == R_BaseNamespace ||
+    Rf_findVarInFrame3(env, Rf_install(".__NAMESPACE__."), FALSE) != R_UnboundValue;
 }
+
 
 // R equivalent
 // https://github.com/wch/r-source/blob/master/src/library/utils/src/size.c#L41
 
 double obj_size_tree(SEXP x,
-                     Environment base_env,
+                     cpp11::environment base_env,
                      int sizeof_node,
                      int sizeof_vector,
                      std::set<SEXP>& seen,
@@ -60,20 +65,11 @@ double obj_size_tree(SEXP x,
 #if defined(R_VERSION) && R_VERSION >= R_Version(3, 5, 0)
   // Handle ALTREP objects
   if (ALTREP(x)) {
-
     SEXP klass = ALTREP_CLASS(x);
-    SEXP classname = CAR(ATTRIB(klass));
 
     size += 3 * sizeof(SEXP);
     size += obj_size_tree(klass, base_env, sizeof_node, sizeof_vector, seen, depth + 1);
-    if (classname == Rf_install("deferred_string")) {
-      // Deferred string ALTREP uses an pairlist, but stores data in the CDR
-      SEXP data1 = R_altrep_data1(x);
-      size += obj_size_tree(CAR(data1), base_env, sizeof_node, sizeof_vector, seen, depth + 1);
-      size += obj_size_tree(CDR(data1), base_env, sizeof_node, sizeof_vector, seen, depth + 1);
-    } else {
-      size += obj_size_tree(R_altrep_data1(x), base_env, sizeof_node, sizeof_vector, seen, depth + 1);
-    }
+    size += obj_size_tree(R_altrep_data1(x), base_env, sizeof_node, sizeof_vector, seen, depth + 1);
     size += obj_size_tree(R_altrep_data2(x), base_env, sizeof_node, sizeof_vector, seen, depth + 1);
     return size;
   }
@@ -131,18 +127,24 @@ double obj_size_tree(SEXP x,
   // Linked lists
   case DOTSXP:
   case LISTSXP:
-  case LANGSXP:
-    if (x == R_MissingArg) // Needed for DOTSXP
+  case LANGSXP: {
+    if (x == R_MissingArg) { // Needed for DOTSXP
       break;
+    }
 
-    for(SEXP cons = x; cons != R_NilValue; cons = CDR(cons)) {
-      if (cons != x)
+    SEXP cons = x;
+    for (; is_linked_list(cons); cons = CDR(cons)) {
+      if (cons != x) {
         size += sizeof_node;
+      }
       size += obj_size_tree(TAG(cons), base_env, sizeof_node, sizeof_vector, seen, depth + 1);
       size += obj_size_tree(CAR(cons), base_env, sizeof_node, sizeof_vector, seen, depth + 1);
     }
+    // Handle non-nil CDRs
+    size += obj_size_tree(cons, base_env, sizeof_node, sizeof_vector, seen, depth + 1);
 
     break;
+  }
 
   case BCODESXP:
     size += obj_size_tree(TAG(x), base_env, sizeof_node, sizeof_vector, seen, depth + 1);
@@ -188,15 +190,15 @@ double obj_size_tree(SEXP x,
     break;
 
   default:
-    stop("Can't compute size of %s", Rf_type2char(TYPEOF(x)));
+    cpp11::stop("Can't compute size of %s", Rf_type2char(TYPEOF(x)));
   }
 
   // Rprintf("type: %-10s size: %6.0f\n", Rf_type2char(TYPEOF(x)), size);
   return size;
 }
 
-// [[Rcpp::export]]
-double obj_size_(List objects, Environment base_env, int sizeof_node, int sizeof_vector) {
+[[cpp11::register]]
+double obj_size_(cpp11::list objects, cpp11::environment base_env, int sizeof_node, int sizeof_vector) {
   std::set<SEXP> seen;
   double size = 0;
 
@@ -208,14 +210,14 @@ double obj_size_(List objects, Environment base_env, int sizeof_node, int sizeof
   return size;
 }
 
-// [[Rcpp::export]]
-IntegerVector obj_csize_(List objects, Environment base_env, int sizeof_node, int sizeof_vector) {
+[[cpp11::register]]
+cpp11::doubles obj_csize_(cpp11::list objects, cpp11::environment base_env, int sizeof_node, int sizeof_vector) {
   std::set<SEXP> seen;
   int n = objects.size();
 
-  IntegerVector out(n);
+  cpp11::writable::doubles out(n);
   for (int i = 0; i < n; ++i) {
-    out[i] += obj_size_tree(objects[i], base_env, sizeof_node, sizeof_vector, seen, 0);
+    out[i] = obj_size_tree(objects[i], base_env, sizeof_node, sizeof_vector, seen, 0);
   }
 
   return out;

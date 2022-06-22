@@ -1,6 +1,9 @@
-#include <Rcpp.h>
-using namespace Rcpp;
+#include <cpp11/environment.hpp>
+#include <cpp11/list.hpp>
+#include <cpp11/strings.hpp>
 #include <Rversion.h>
+#include <map>
+#include "utils.h"
 
 struct Expand {
   bool alrep;
@@ -11,8 +14,8 @@ struct Expand {
 };
 
 class GrowableList {
-  Rcpp::List data_;
-  Rcpp::CharacterVector names_;
+  cpp11::writable::list data_;
+  cpp11::writable::strings names_;
   R_xlen_t n_;
 
 public:
@@ -20,16 +23,20 @@ public:
   }
 
   void push_back(const char* string, SEXP x) {
+    int n_protected = 0;
+
     if (Rf_xlength(data_) == n_) {
-      data_ = Rf_xlengthgets(data_, n_ * 2);
-      names_ = Rf_xlengthgets(names_, n_ * 2);
+      data_ = PROTECT(Rf_xlengthgets(data_, n_ * 2)); n_protected++;
+      names_ = PROTECT(Rf_xlengthgets(names_, n_ * 2)); n_protected++;
     }
-    SET_STRING_ELT(names_, n_, Rf_mkChar(string));
+    SEXP string_ = PROTECT(Rf_mkChar(string)); n_protected++;
+    SET_STRING_ELT(names_, n_, string_);
     SET_VECTOR_ELT(data_, n_, x);
     n_++;
+    UNPROTECT(n_protected);
   }
 
-  Rcpp::List vector() {
+  cpp11::list vector() {
     if (Rf_xlength(data_) != n_) {
       data_ = Rf_xlengthgets(data_, n_);
       names_ = Rf_xlengthgets(names_, n_);
@@ -41,7 +48,7 @@ public:
 };
 
 SEXP obj_children_(SEXP x, std::map<SEXP, int>& seen, double max_depth, Expand expand);
-bool is_namespace(Environment env);
+bool is_namespace(cpp11::environment env);
 
 bool is_altrep(SEXP x) {
 #if defined(R_VERSION) && R_VERSION >= R_Version(3, 5, 0)
@@ -71,11 +78,11 @@ SEXP obj_inspect_(SEXP x,
   }
 
   // don't store object directly to avoid increasing refcount
-  Rf_setAttrib(children, Rf_install("addr"), PROTECT(Rf_mkString(tfm::format("%p", x).c_str())));
+  Rf_setAttrib(children, Rf_install("addr"), PROTECT(Rf_mkString(obj_addr_(x).c_str())));
   Rf_setAttrib(children, Rf_install("has_seen"), PROTECT(Rf_ScalarLogical(has_seen)));
   Rf_setAttrib(children, Rf_install("id"), PROTECT(Rf_ScalarInteger(id)));
   Rf_setAttrib(children, Rf_install("type"), PROTECT(Rf_ScalarInteger(TYPEOF(x))));
-  Rf_setAttrib(children, Rf_install("length"), PROTECT(Rf_ScalarReal(Rf_length(x))));
+  Rf_setAttrib(children, Rf_install("length"), PROTECT(Rf_ScalarReal(sxp_length(x))));
   Rf_setAttrib(children, Rf_install("altrep"), PROTECT(Rf_ScalarLogical(is_altrep(x))));
   Rf_setAttrib(children, Rf_install("named"), PROTECT(Rf_ScalarInteger(NAMED(x))));
   Rf_setAttrib(children, Rf_install("object"), PROTECT(Rf_ScalarInteger(OBJECT(x))));
@@ -141,17 +148,9 @@ SEXP obj_children_(
   if (expand.alrep && is_altrep(x)) {
 #if defined(R_VERSION) && R_VERSION >= R_Version(3, 5, 0)
     SEXP klass = ALTREP_CLASS(x);
-    SEXP classname = CAR(ATTRIB(klass));
 
     recurse(&children, seen, "_class", klass, max_depth, expand);
-    if (classname == Rf_install("deferred_string")) {
-      // Deferred string ALTREP uses an pairlist, but stores data in the CDR
-      SEXP data1 = R_altrep_data1(x);
-      recurse(&children, seen, "_data1_car", CAR(data1), max_depth, expand);
-      recurse(&children, seen, "_data1_cdr", CDR(data1), max_depth, expand);
-    } else {
-      recurse(&children, seen, "_data1", R_altrep_data1(x), max_depth, expand);
-    }
+    recurse(&children, seen, "_data1", R_altrep_data1(x), max_depth, expand);
     recurse(&children, seen, "_data2", R_altrep_data2(x), max_depth, expand);
 #endif
   } else if (max_depth <= 0) {
@@ -222,11 +221,13 @@ SEXP obj_children_(
         break;
       }
     case DOTSXP:
-    case LISTSXP:
-      if (x == R_MissingArg) // Needed for DOTSXP
+    case LISTSXP: {
+      if (x == R_MissingArg) { // Needed for DOTSXP
         break;
+      }
 
-      for(SEXP cons = x; cons != R_NilValue; cons = CDR(cons)) {
+      SEXP cons = x;
+      for (; is_linked_list(cons); cons = CDR(cons)) {
         SEXP tag = TAG(cons);
         if (TYPEOF(tag) == NILSXP) {
           recurse(&children, seen, "", CAR(cons), max_depth, expand);
@@ -238,7 +239,12 @@ SEXP obj_children_(
           recurse(&children, seen, "_car", CAR(cons), max_depth, expand);
         }
       }
+      if (cons != R_NilValue) {
+        recurse(&children, seen, "_cdr", cons, max_depth, expand);
+      }
+
       break;
+    }
 
     case BCODESXP:
       if (!expand.bytecode) {
@@ -270,8 +276,9 @@ SEXP obj_children_(
             children.push_back(name, active);
             UNPROTECT(2);
           } else {
-            SEXP obj = Rf_findVarInFrame(x, sym);
+            SEXP obj = PROTECT(Rf_findVarInFrame(x, sym));
             recurse(&children, seen, name, obj, max_depth, expand);
+            UNPROTECT(1);
           }
           UNPROTECT(1);
         }
@@ -304,7 +311,7 @@ SEXP obj_children_(
       break;
 
     default:
-      stop("Don't know how to handle type %s", Rf_type2char(TYPEOF(x)));
+      cpp11::stop("Don't know how to handle type %s", Rf_type2char(TYPEOF(x)));
     }
   }
 
@@ -324,8 +331,8 @@ SEXP obj_children_(
 }
 
 
-// [[Rcpp::export]]
-Rcpp::List obj_inspect_(SEXP x,
+[[cpp11::register]]
+cpp11::list obj_inspect_(SEXP x,
                         double max_depth,
                         bool expand_char = false,
                         bool expand_altrep = false,
